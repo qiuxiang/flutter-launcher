@@ -11,7 +11,12 @@ class Apps extends StatelessWidget {
       itemCount: apps.length,
       itemBuilder: (context, i) {
         final item = apps.elementAt(i);
+        Image icon;
+        if (item is ApplicationWithIcon) {
+          icon = Image.memory(item.icon, width: 40);
+        }
         return ListTile(
+          leading: icon,
           title: Text(item.appName),
           subtitle: Text(item.packageName),
           onTap: () => DeviceApps.openApp(item.packageName),

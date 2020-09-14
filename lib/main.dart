@@ -32,8 +32,14 @@ class _HomePageState extends State<HomePage> {
 
   initState() {
     super.initState();
+
     DeviceApps.getInstalledApplications(includeSystemApps: true)
         .then((apps) => setState(() => _apps = apps));
+
+    DeviceApps.getInstalledApplications(
+      includeSystemApps: true,
+      includeAppIcons: true,
+    ).then((apps) => setState(() => _apps = apps));
   }
 
   _onSelected(PopupMenu value) {
@@ -46,7 +52,7 @@ class _HomePageState extends State<HomePage> {
   build(context) {
     var apps = _apps;
     if (!_includeSystemApps) {
-      apps = apps.where((it) => !it.systemApp);
+      apps = apps.where((it) => !it.systemApp).toList();
     }
     return Scaffold(
       appBar: AppBar(
