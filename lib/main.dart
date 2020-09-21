@@ -35,11 +35,6 @@ class _HomePageState extends State<HomePage> {
 
     DeviceApps.getInstalledApplications(includeSystemApps: true)
         .then((apps) => setState(() => _apps = apps));
-
-    DeviceApps.getInstalledApplications(
-      includeSystemApps: true,
-      includeAppIcons: true,
-    ).then((apps) => setState(() => _apps = apps));
   }
 
   _onSelected(PopupMenu value) {
@@ -71,8 +66,10 @@ class _HomePageState extends State<HomePage> {
                 child: Row(children: [
                   Checkbox(
                     value: _includeSystemApps,
-                    onChanged: (value) =>
-                        setState(() => _includeSystemApps = value),
+                    onChanged: (value) {
+                      setState(() => _includeSystemApps = value);
+                      Navigator.of(context).pop();
+                    },
                   ),
                   const Text('System Apps'),
                 ]),
