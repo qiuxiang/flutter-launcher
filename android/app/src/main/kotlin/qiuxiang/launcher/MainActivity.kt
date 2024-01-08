@@ -1,4 +1,4 @@
-package com.example.launcher
+package qiuxiang.launcher
 
 import io.flutter.embedding.android.FlutterActivity
 

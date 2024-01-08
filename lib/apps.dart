@@ -4,14 +4,15 @@ import 'package:flutter/material.dart';
 class Apps extends StatelessWidget {
   final Iterable<Application> apps;
 
-  const Apps(this.apps);
+  const Apps(this.apps, {super.key});
 
+  @override
   build(context) {
     return ListView.builder(
       itemCount: apps.length,
       itemBuilder: (context, i) {
         final item = apps.elementAt(i);
-        Image icon;
+        Image? icon;
         if (item is ApplicationWithIcon) {
           icon = Image.memory(item.icon, width: 40);
         }

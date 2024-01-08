@@ -8,18 +8,22 @@ class Search extends SearchDelegate {
 
   Search(this.apps);
 
+  @override
   buildActions(context) =>
-      [IconButton(icon: Icon(Icons.clear), onPressed: () => query = '')];
+      [IconButton(icon: const Icon(Icons.clear), onPressed: () => query = '')];
 
+  @override
   buildLeading(context) => null;
 
+  @override
   buildResults(context) => buildSuggestions(context);
 
+  @override
   buildSuggestions(context) {
-    final where =
-        (it) => it.appName.contains(query) || it.packageName.contains(query);
-    return Apps(this.apps.where(where));
+    where(it) => it.appName.contains(query) || it.packageName.contains(query);
+    return Apps(apps.where(where));
   }
 
+  @override
   appBarTheme(context) => Theme.of(context);
 }

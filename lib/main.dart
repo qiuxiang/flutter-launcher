@@ -5,20 +5,26 @@ import 'apps.dart';
 import 'search.dart';
 
 void main() {
-  runApp(App());
+  runApp(const App());
 }
 
 class App extends StatelessWidget {
+  const App({super.key});
+
+  @override
   build(context) {
     return MaterialApp(
       title: 'Launcher',
       darkTheme: ThemeData.dark(),
-      home: HomePage(),
+      home: const HomePage(),
     );
   }
 }
 
 class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
+  @override
   createState() => _HomePageState();
 }
 
@@ -30,11 +36,15 @@ class _HomePageState extends State<HomePage> {
   List<Application> _apps = [];
   bool _includeSystemApps = true;
 
+  @override
   initState() {
     super.initState();
 
-    DeviceApps.getInstalledApplications(includeSystemApps: true)
-        .then((apps) => setState(() => _apps = apps));
+    DeviceApps.getInstalledApplications(
+      includeSystemApps: true,
+      includeAppIcons: true,
+      onlyAppsWithLaunchIntent: true,
+    ).then((apps) => setState(() => _apps = apps));
   }
 
   _onSelected(PopupMenu value) {
@@ -44,6 +54,7 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  @override
   build(context) {
     var apps = _apps;
     if (!_includeSystemApps) {
@@ -54,9 +65,11 @@ class _HomePageState extends State<HomePage> {
         title: const Text('Launcher'),
         actions: [
           IconButton(
-            icon: Icon(Icons.search),
-            onPressed: () =>
-                showSearch(context: context, delegate: Search(apps)),
+            icon: const Icon(Icons.search),
+            onPressed: () => showSearch(
+              context: context,
+              delegate: Search(apps),
+            ),
           ),
           PopupMenuButton(
             onSelected: _onSelected,
@@ -67,7 +80,7 @@ class _HomePageState extends State<HomePage> {
                   Checkbox(
                     value: _includeSystemApps,
                     onChanged: (value) {
-                      setState(() => _includeSystemApps = value);
+                      setState(() => _includeSystemApps = value!);
                       Navigator.of(context).pop();
                     },
                   ),
