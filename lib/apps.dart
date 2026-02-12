@@ -1,8 +1,9 @@
-import 'package:device_apps/device_apps.dart';
 import 'package:flutter/material.dart';
+import 'package:installed_apps/app_info.dart';
+import 'package:installed_apps/installed_apps.dart';
 
 class Apps extends StatelessWidget {
-  final Iterable<Application> apps;
+  final Iterable<AppInfo> apps;
 
   const Apps(this.apps, {super.key});
 
@@ -12,15 +13,13 @@ class Apps extends StatelessWidget {
       itemCount: apps.length,
       itemBuilder: (context, i) {
         final item = apps.elementAt(i);
-        Image? icon;
-        if (item is ApplicationWithIcon) {
-          icon = Image.memory(item.icon, width: 40);
-        }
         return ListTile(
-          leading: icon,
-          title: Text(item.appName),
+          leading: item.icon != null
+              ? Image.memory(item.icon!, width: 40)
+              : const SizedBox(width: 40, height: 40),
+          title: Text(item.name),
           subtitle: Text(item.packageName),
-          onTap: () => DeviceApps.openApp(item.packageName),
+          onTap: () => InstalledApps.startApp(item.packageName),
         );
       },
     );

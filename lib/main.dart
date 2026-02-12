@@ -1,5 +1,6 @@
-import 'package:device_apps/device_apps.dart';
 import 'package:flutter/material.dart';
+import 'package:installed_apps/app_info.dart';
+import 'package:installed_apps/installed_apps.dart';
 
 import 'apps.dart';
 import 'search.dart';
@@ -33,17 +34,16 @@ enum PopupMenu {
 }
 
 class _HomePageState extends State<HomePage> {
-  List<Application> _apps = [];
+  List<AppInfo> _apps = [];
   bool _includeSystemApps = true;
 
   @override
   initState() {
     super.initState();
 
-    DeviceApps.getInstalledApplications(
-      includeSystemApps: true,
-      includeAppIcons: true,
-      onlyAppsWithLaunchIntent: true,
+    InstalledApps.getInstalledApps(
+      excludeSystemApps: false,
+      withIcon: true,
     ).then((apps) => setState(() => _apps = apps));
   }
 
@@ -58,7 +58,7 @@ class _HomePageState extends State<HomePage> {
   build(context) {
     var apps = _apps;
     if (!_includeSystemApps) {
-      apps = apps.where((it) => !it.systemApp).toList();
+      apps = apps.where((it) => !it.isSystemApp).toList();
     }
     return Scaffold(
       appBar: AppBar(
