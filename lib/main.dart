@@ -130,7 +130,7 @@ class _HomePageState extends State<HomePage> {
             icon: const Icon(Icons.search),
             onPressed: () => showSearch(
               context: context,
-              delegate: Search(sortedApps),
+              delegate: Search(sortedApps, onOpen: _onOpen),
             ),
           ),
           PopupMenuButton(

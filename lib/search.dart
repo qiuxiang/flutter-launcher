@@ -5,8 +5,9 @@ import 'model.dart';
 
 class Search extends SearchDelegate {
   final List<AppCache> apps;
+  final Function(AppCache)? onOpen;
 
-  Search(this.apps);
+  Search(this.apps, {this.onOpen});
 
   @override
   buildActions(context) =>
@@ -23,7 +24,7 @@ class Search extends SearchDelegate {
     where(it) =>
         it.name.toLowerCase().contains(query.toLowerCase()) ||
         it.packageName.toLowerCase().contains(query.toLowerCase());
-    return Apps(apps.where(where));
+    return Apps(apps.where(where), onOpen: onOpen);
   }
 
   @override
