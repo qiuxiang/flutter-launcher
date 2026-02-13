@@ -91,7 +91,6 @@ class _HomePageState extends State<HomePage> {
         _apps[index] = AppCache(
           name: app.name,
           packageName: app.packageName,
-          icon: app.icon,
           isSystemApp: app.isSystemApp,
           versionName: app.versionName,
           isFavorite: newFavoriteStatus,

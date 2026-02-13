@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:installed_apps/installed_apps.dart';
 import 'models/app_cache.dart';
+import 'services/app_database.dart';
 
 class Apps extends StatelessWidget {
   final Iterable<AppCache> apps;
@@ -10,10 +13,15 @@ class Apps extends StatelessWidget {
 
   @override
   build(context) {
+    final iconsDir = AppDatabase.iconsDir;
+
     return ListView.builder(
       itemCount: apps.length,
       itemBuilder: (context, i) {
         final item = apps.elementAt(i);
+        final iconFile = File('${iconsDir.path}/${item.packageName}.png');
+        final hasIcon = iconFile.existsSync();
+
         return Dismissible(
           key: ValueKey('${item.packageName}_${item.isFavorite}'),
           direction: DismissDirection.endToStart,
@@ -31,8 +39,8 @@ class Apps extends StatelessWidget {
             return false;
           },
           child: ListTile(
-            leading: item.icon != null
-                ? Image.memory(item.icon!, width: 40)
+            leading: hasIcon
+                ? Image.file(iconFile, width: 40)
                 : const SizedBox(width: 40, height: 40),
             title: Text(item.name),
             subtitle: Text(item.packageName),

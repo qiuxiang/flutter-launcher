@@ -11,13 +11,16 @@ import '../models/app_cache.dart';
 class AppDatabase {
   static final _instance = AppDatabase._();
   static Database? _database;
+  static Directory? _iconsDir;
 
   factory AppDatabase() => _instance;
   AppDatabase._();
 
   static const _tableName = 'apps';
   static const _dbName = 'app_cache.db';
-  static const _dbVersion = 2;
+  static const _dbVersion = 3;
+
+  static Directory get iconsDir => _iconsDir!;
 
   Future<Database> get database async {
     _database ??= await _initDatabase();
@@ -30,9 +33,13 @@ class AppDatabase {
 
     final appDocDir = await getApplicationDocumentsDirectory();
     final dbDir = Directory(join(appDocDir.path, 'databases'));
+    _iconsDir = Directory(join(appDocDir.path, 'icons'));
 
     if (!await dbDir.exists()) {
       await dbDir.create(recursive: true);
+    }
+    if (!await _iconsDir!.exists()) {
+      await _iconsDir!.create(recursive: true);
     }
 
     return await openDatabase(
@@ -47,6 +54,10 @@ class AppDatabase {
     if (oldVersion < 2) {
       await db.execute(
           'ALTER TABLE $_tableName ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0');
+    }
+    if (oldVersion < 3) {
+      // Drop the icon column as we now store icons in files
+      await db.execute('ALTER TABLE $_tableName DROP COLUMN icon');
     }
   }
 
@@ -70,7 +81,11 @@ class AppDatabase {
 
   Future<List<AppCache>> getApps() async {
     final db = await database;
-    final maps = await db.query(_tableName);
+    // Exclude icon column since icons are now stored in files
+    final maps = await db.query(
+      _tableName,
+      columns: ['package_name', 'name', 'is_system_app', 'version_name', 'is_favorite'],
+    );
     return maps.map((map) => AppCache.fromMap(map)).toList();
   }
 
@@ -88,6 +103,14 @@ class AppDatabase {
       await txn.delete(_tableName);
 
       for (final app in apps) {
+        // Save icon to file only if it doesn't exist
+        if (app.icon != null) {
+          final iconFile = File(join(_iconsDir!.path, '${app.packageName}.png'));
+          if (!await iconFile.exists()) {
+            await iconFile.writeAsBytes(app.icon!);
+          }
+        }
+
         final cache = AppCache(
           name: app.name,
           packageName: app.packageName,
@@ -97,9 +120,13 @@ class AppDatabase {
           isFavorite: favoritePackageNames.contains(app.packageName),
         );
 
+        // toMap() now excludes icon since we store it in files
+        final map = cache.toMap();
+        map.remove('icon');
+
         await txn.insert(
           _tableName,
-          cache.toMap(),
+          map,
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
       }
