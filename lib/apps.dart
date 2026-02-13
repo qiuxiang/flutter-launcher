@@ -8,8 +8,9 @@ import 'services/app_database.dart';
 class Apps extends StatelessWidget {
   final Iterable<AppCache> apps;
   final Function(AppCache)? onFavoriteToggle;
+  final Function(AppCache)? onOpen;
 
-  const Apps(this.apps, {this.onFavoriteToggle, super.key});
+  const Apps(this.apps, {this.onFavoriteToggle, this.onOpen, super.key});
 
   @override
   build(context) {
@@ -47,7 +48,10 @@ class Apps extends StatelessWidget {
             trailing: item.isFavorite
                 ? const Icon(Icons.star, color: Colors.amber, size: 20)
                 : null,
-            onTap: () => InstalledApps.startApp(item.packageName),
+            onTap: () {
+              onOpen?.call(item);
+              InstalledApps.startApp(item.packageName);
+            },
           ),
         );
       },

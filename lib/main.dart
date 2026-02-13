@@ -94,6 +94,26 @@ class _HomePageState extends State<HomePage> {
           isSystemApp: app.isSystemApp,
           versionName: app.versionName,
           isFavorite: newFavoriteStatus,
+          lastOpenedAt: app.lastOpenedAt,
+        );
+      }
+    });
+  }
+
+  Future<void> _onOpen(AppCache app) async {
+    await _db.updateLastOpened(app.packageName);
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    setState(() {
+      final index = _apps.indexWhere((it) => it.packageName == app.packageName);
+      if (index != -1) {
+        _apps[index] = AppCache(
+          name: app.name,
+          packageName: app.packageName,
+          isSystemApp: app.isSystemApp,
+          versionName: app.versionName,
+          isFavorite: app.isFavorite,
+          lastOpenedAt: now,
         );
       }
     });
@@ -113,11 +133,14 @@ class _HomePageState extends State<HomePage> {
       apps = apps.where((it) => !it.isSystemApp).toList();
     }
 
-    // Sort: Favorites first, then by name
+    // Sort: Favorites first, then by last opened time, then by name
     final sortedApps = apps.toList()
       ..sort((a, b) {
         if (a.isFavorite != b.isFavorite) {
           return b.isFavorite ? 1 : -1;
+        }
+        if (a.lastOpenedAt != b.lastOpenedAt) {
+          return b.lastOpenedAt.compareTo(a.lastOpenedAt);
         }
         return a.name.toLowerCase().compareTo(b.name.toLowerCase());
       });
@@ -155,7 +178,11 @@ class _HomePageState extends State<HomePage> {
       ),
       body: _isLoading && _apps.isEmpty
           ? const Center(child: CircularProgressIndicator())
-          : Apps(sortedApps, onFavoriteToggle: _toggleFavorite),
+          : Apps(
+              sortedApps,
+              onFavoriteToggle: _toggleFavorite,
+              onOpen: _onOpen,
+            ),
     );
   }
 }

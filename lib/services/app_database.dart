@@ -18,7 +18,7 @@ class AppDatabase {
 
   static const _tableName = 'apps';
   static const _dbName = 'app_cache.db';
-  static const _dbVersion = 3;
+  static const _dbVersion = 4;
 
   static Directory get iconsDir => _iconsDir!;
 
@@ -59,6 +59,10 @@ class AppDatabase {
       // Drop the icon column as we now store icons in files
       await db.execute('ALTER TABLE $_tableName DROP COLUMN icon');
     }
+    if (oldVersion < 4) {
+      await db.execute(
+          'ALTER TABLE $_tableName ADD COLUMN last_opened_at INTEGER NOT NULL DEFAULT 0');
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -67,10 +71,10 @@ class AppDatabase {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         package_name TEXT UNIQUE NOT NULL,
         name TEXT NOT NULL,
-        icon BLOB,
         is_system_app INTEGER NOT NULL DEFAULT 0,
         version_name TEXT,
-        is_favorite INTEGER NOT NULL DEFAULT 0
+        is_favorite INTEGER NOT NULL DEFAULT 0,
+        last_opened_at INTEGER NOT NULL DEFAULT 0
       )
     ''');
 
@@ -84,7 +88,14 @@ class AppDatabase {
     // Exclude icon column since icons are now stored in files
     final maps = await db.query(
       _tableName,
-      columns: ['package_name', 'name', 'is_system_app', 'version_name', 'is_favorite'],
+      columns: [
+        'package_name',
+        'name',
+        'is_system_app',
+        'version_name',
+        'is_favorite',
+        'last_opened_at'
+      ],
     );
     return maps.map((map) => AppCache.fromMap(map)).toList();
   }
@@ -92,20 +103,26 @@ class AppDatabase {
   Future<void> saveApps(List<AppInfo> apps) async {
     final db = await database;
     return db.transaction((txn) async {
-      final currentFavorites = await txn.query(
+      final currentData = await txn.query(
         _tableName,
-        columns: ['package_name'],
-        where: 'is_favorite = 1',
+        columns: ['package_name', 'is_favorite', 'last_opened_at'],
       );
-      final favoritePackageNames =
-          currentFavorites.map((map) => map['package_name'] as String).toSet();
+      final favoriteMap = {
+        for (final row in currentData)
+          row['package_name'] as String: row['is_favorite'] as int
+      };
+      final lastOpenedMap = {
+        for (final row in currentData)
+          row['package_name'] as String: row['last_opened_at'] as int
+      };
 
       await txn.delete(_tableName);
 
       for (final app in apps) {
         // Save icon to file only if it doesn't exist
         if (app.icon != null) {
-          final iconFile = File(join(_iconsDir!.path, '${app.packageName}.png'));
+          final iconFile =
+              File(join(_iconsDir!.path, '${app.packageName}.png'));
           if (!await iconFile.exists()) {
             await iconFile.writeAsBytes(app.icon!);
           }
@@ -117,7 +134,8 @@ class AppDatabase {
           icon: app.icon,
           isSystemApp: app.isSystemApp,
           versionName: app.versionName,
-          isFavorite: favoritePackageNames.contains(app.packageName),
+          isFavorite: favoriteMap[app.packageName] == 1,
+          lastOpenedAt: lastOpenedMap[app.packageName] ?? 0,
         );
 
         // toMap() now excludes icon since we store it in files
@@ -131,6 +149,16 @@ class AppDatabase {
         );
       }
     });
+  }
+
+  Future<void> updateLastOpened(String packageName) async {
+    final db = await database;
+    await db.update(
+      _tableName,
+      {'last_opened_at': DateTime.now().millisecondsSinceEpoch},
+      where: 'package_name = ?',
+      whereArgs: [packageName],
+    );
   }
 
   Future<void> toggleFavorite(String packageName, bool isFavorite) async {
