@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'apps.dart';
-import 'models/app_cache.dart';
+import 'model.dart';
 
 class Search extends SearchDelegate {
   final List<AppCache> apps;

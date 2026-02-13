@@ -6,7 +6,7 @@ import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-import '../models/app_cache.dart';
+import 'model.dart';
 
 class AppDatabase {
   static final _instance = AppDatabase._();
@@ -56,7 +56,6 @@ class AppDatabase {
           'ALTER TABLE $_tableName ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0');
     }
     if (oldVersion < 3) {
-      // Drop the icon column as we now store icons in files
       await db.execute('ALTER TABLE $_tableName DROP COLUMN icon');
     }
     if (oldVersion < 4) {
@@ -85,7 +84,6 @@ class AppDatabase {
 
   Future<List<AppCache>> getApps() async {
     final db = await database;
-    // Exclude icon column since icons are now stored in files
     final maps = await db.query(
       _tableName,
       columns: [
@@ -93,7 +91,6 @@ class AppDatabase {
         'name',
         'is_system_app',
         'version_name',
-        'is_favorite',
         'last_opened_at'
       ],
     );
@@ -105,12 +102,8 @@ class AppDatabase {
     return db.transaction((txn) async {
       final currentData = await txn.query(
         _tableName,
-        columns: ['package_name', 'is_favorite', 'last_opened_at'],
+        columns: ['package_name', 'last_opened_at'],
       );
-      final favoriteMap = {
-        for (final row in currentData)
-          row['package_name'] as String: row['is_favorite'] as int
-      };
       final lastOpenedMap = {
         for (final row in currentData)
           row['package_name'] as String: row['last_opened_at'] as int
@@ -119,7 +112,6 @@ class AppDatabase {
       await txn.delete(_tableName);
 
       for (final app in apps) {
-        // Save icon to file only if it doesn't exist
         if (app.icon != null) {
           final iconFile =
               File(join(_iconsDir!.path, '${app.packageName}.png'));
@@ -134,11 +126,9 @@ class AppDatabase {
           icon: app.icon,
           isSystemApp: app.isSystemApp,
           versionName: app.versionName,
-          isFavorite: favoriteMap[app.packageName] == 1,
           lastOpenedAt: lastOpenedMap[app.packageName] ?? 0,
         );
 
-        // toMap() now excludes icon since we store it in files
         final map = cache.toMap();
         map.remove('icon');
 
@@ -156,16 +146,6 @@ class AppDatabase {
     await db.update(
       _tableName,
       {'last_opened_at': DateTime.now().millisecondsSinceEpoch},
-      where: 'package_name = ?',
-      whereArgs: [packageName],
-    );
-  }
-
-  Future<void> toggleFavorite(String packageName, bool isFavorite) async {
-    final db = await database;
-    await db.update(
-      _tableName,
-      {'is_favorite': isFavorite ? 1 : 0},
       where: 'package_name = ?',
       whereArgs: [packageName],
     );

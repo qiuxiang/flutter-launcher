@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:installed_apps/installed_apps.dart';
 
 import 'apps.dart';
-import 'models/app_cache.dart';
+import 'model.dart';
 import 'search.dart';
-import 'services/app_database.dart';
+import 'database.dart';
 
 void main() {
   runApp(const App());
@@ -81,25 +81,6 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _toggleFavorite(AppCache app) async {
-    final newFavoriteStatus = !app.isFavorite;
-    await _db.toggleFavorite(app.packageName, newFavoriteStatus);
-
-    setState(() {
-      final index = _apps.indexWhere((it) => it.packageName == app.packageName);
-      if (index != -1) {
-        _apps[index] = AppCache(
-          name: app.name,
-          packageName: app.packageName,
-          isSystemApp: app.isSystemApp,
-          versionName: app.versionName,
-          isFavorite: newFavoriteStatus,
-          lastOpenedAt: app.lastOpenedAt,
-        );
-      }
-    });
-  }
-
   Future<void> _onOpen(AppCache app) async {
     await _db.updateLastOpened(app.packageName);
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -112,7 +93,6 @@ class _HomePageState extends State<HomePage> {
           packageName: app.packageName,
           isSystemApp: app.isSystemApp,
           versionName: app.versionName,
-          isFavorite: app.isFavorite,
           lastOpenedAt: now,
         );
       }
@@ -133,12 +113,9 @@ class _HomePageState extends State<HomePage> {
       apps = apps.where((it) => !it.isSystemApp).toList();
     }
 
-    // Sort: Favorites first, then by last opened time, then by name
+    // Sort: By last opened time, then by name
     final sortedApps = apps.toList()
       ..sort((a, b) {
-        if (a.isFavorite != b.isFavorite) {
-          return b.isFavorite ? 1 : -1;
-        }
         if (a.lastOpenedAt != b.lastOpenedAt) {
           return b.lastOpenedAt.compareTo(a.lastOpenedAt);
         }
@@ -180,7 +157,6 @@ class _HomePageState extends State<HomePage> {
           ? const Center(child: CircularProgressIndicator())
           : Apps(
               sortedApps,
-              onFavoriteToggle: _toggleFavorite,
               onOpen: _onOpen,
             ),
     );
