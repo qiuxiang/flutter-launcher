@@ -17,7 +17,7 @@ class AppDatabase {
 
   static const _tableName = 'apps';
   static const _dbName = 'app_cache.db';
-  static const _dbVersion = 1;
+  static const _dbVersion = 2;
 
   Future<Database> get database async {
     _database ??= await _initDatabase();
@@ -39,7 +39,15 @@ class AppDatabase {
       join(dbDir.path, _dbName),
       version: _dbVersion,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute(
+          'ALTER TABLE $_tableName ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0');
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -50,7 +58,8 @@ class AppDatabase {
         name TEXT NOT NULL,
         icon BLOB,
         is_system_app INTEGER NOT NULL DEFAULT 0,
-        version_name TEXT
+        version_name TEXT,
+        is_favorite INTEGER NOT NULL DEFAULT 0
       )
     ''');
 
@@ -61,13 +70,21 @@ class AppDatabase {
 
   Future<List<AppCache>> getApps() async {
     final db = await database;
-    final maps = await db.query(_tableName, orderBy: 'name COLLATE NOCASE ASC');
-
+    final maps = await db.query(_tableName);
     return maps.map((map) => AppCache.fromMap(map)).toList();
   }
 
   Future<void> saveApps(List<AppInfo> apps) async {
-    return (await database).transaction((txn) async {
+    final db = await database;
+    return db.transaction((txn) async {
+      final currentFavorites = await txn.query(
+        _tableName,
+        columns: ['package_name'],
+        where: 'is_favorite = 1',
+      );
+      final favoritePackageNames =
+          currentFavorites.map((map) => map['package_name'] as String).toSet();
+
       await txn.delete(_tableName);
 
       for (final app in apps) {
@@ -77,6 +94,7 @@ class AppDatabase {
           icon: app.icon,
           isSystemApp: app.isSystemApp,
           versionName: app.versionName,
+          isFavorite: favoritePackageNames.contains(app.packageName),
         );
 
         await txn.insert(
@@ -86,6 +104,16 @@ class AppDatabase {
         );
       }
     });
+  }
+
+  Future<void> toggleFavorite(String packageName, bool isFavorite) async {
+    final db = await database;
+    await db.update(
+      _tableName,
+      {'is_favorite': isFavorite ? 1 : 0},
+      where: 'package_name = ?',
+      whereArgs: [packageName],
+    );
   }
 
   Future<void> close() async {

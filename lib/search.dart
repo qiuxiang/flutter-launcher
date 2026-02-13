@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:installed_apps/app_info.dart';
 
 import 'apps.dart';
+import 'models/app_cache.dart';
 
 class Search extends SearchDelegate {
-  final List<AppInfo> apps;
+  final List<AppCache> apps;
 
   Search(this.apps);
 
@@ -20,7 +20,9 @@ class Search extends SearchDelegate {
 
   @override
   buildSuggestions(context) {
-    where(it) => it.name.contains(query) || it.packageName.contains(query);
+    where(it) =>
+        it.name.toLowerCase().contains(query.toLowerCase()) ||
+        it.packageName.toLowerCase().contains(query.toLowerCase());
     return Apps(apps.where(where));
   }
 

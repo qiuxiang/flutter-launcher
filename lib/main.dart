@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:installed_apps/app_category.dart';
-import 'package:installed_apps/app_info.dart';
 import 'package:installed_apps/installed_apps.dart';
-import 'package:installed_apps/platform_type.dart';
 
 import 'apps.dart';
 import 'models/app_cache.dart';
@@ -38,7 +35,7 @@ enum PopupMenu {
 }
 
 class _HomePageState extends State<HomePage> {
-  var _apps = <AppInfo>[];
+  var _apps = <AppCache>[];
   var _includeSystemApps = true;
   var _isLoading = true;
   final _db = AppDatabase();
@@ -53,7 +50,7 @@ class _HomePageState extends State<HomePage> {
     final cachedApps = await _db.getApps();
     if (cachedApps.isNotEmpty) {
       setState(() {
-        _apps = _convertCacheToAppInfo(cachedApps);
+        _apps = cachedApps;
         _isLoading = false;
       });
     }
@@ -69,10 +66,11 @@ class _HomePageState extends State<HomePage> {
       );
 
       await _db.saveApps(apps);
+      final updatedApps = await _db.getApps();
 
       if (mounted) {
         setState(() {
-          _apps = apps..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+          _apps = updatedApps;
           _isLoading = false;
         });
       }
@@ -83,19 +81,23 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  List<AppInfo> _convertCacheToAppInfo(List<AppCache> caches) {
-    return caches.map((cache) => AppInfo(
-      name: cache.name,
-      packageName: cache.packageName,
-      icon: cache.icon,
-      isSystemApp: cache.isSystemApp,
-      versionName: cache.versionName ?? '1.0.0',
-      versionCode: 1,
-      platformType: PlatformType.nativeOrOthers,
-      installedTimestamp: 0,
-      isLaunchableApp: true,
-      category: AppCategory.undefined,
-    )).toList();
+  Future<void> _toggleFavorite(AppCache app) async {
+    final newFavoriteStatus = !app.isFavorite;
+    await _db.toggleFavorite(app.packageName, newFavoriteStatus);
+
+    setState(() {
+      final index = _apps.indexWhere((it) => it.packageName == app.packageName);
+      if (index != -1) {
+        _apps[index] = AppCache(
+          name: app.name,
+          packageName: app.packageName,
+          icon: app.icon,
+          isSystemApp: app.isSystemApp,
+          versionName: app.versionName,
+          isFavorite: newFavoriteStatus,
+        );
+      }
+    });
   }
 
   void _onSelected(PopupMenu value) {
@@ -111,6 +113,16 @@ class _HomePageState extends State<HomePage> {
     if (!_includeSystemApps) {
       apps = apps.where((it) => !it.isSystemApp).toList();
     }
+
+    // Sort: Favorites first, then by name
+    final sortedApps = apps.toList()
+      ..sort((a, b) {
+        if (a.isFavorite != b.isFavorite) {
+          return b.isFavorite ? 1 : -1;
+        }
+        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      });
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Launcher'),
@@ -119,7 +131,7 @@ class _HomePageState extends State<HomePage> {
             icon: const Icon(Icons.search),
             onPressed: () => showSearch(
               context: context,
-              delegate: Search(apps),
+              delegate: Search(sortedApps),
             ),
           ),
           PopupMenuButton(
@@ -143,8 +155,8 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
       body: _isLoading && _apps.isEmpty
-            ? const Center(child: CircularProgressIndicator())
-            : Apps(apps),
+          ? const Center(child: CircularProgressIndicator())
+          : Apps(sortedApps, onFavoriteToggle: _toggleFavorite),
     );
   }
 }
