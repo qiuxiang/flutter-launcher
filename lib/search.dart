@@ -24,7 +24,7 @@ class Search extends SearchDelegate {
     where(it) =>
         it.name.toLowerCase().contains(query.toLowerCase()) ||
         it.packageName.toLowerCase().contains(query.toLowerCase());
-    return Apps(apps.where(where), onOpen: onOpen);
+    return Apps(apps.where(where).toList(), onOpen: onOpen);
   }
 
   @override

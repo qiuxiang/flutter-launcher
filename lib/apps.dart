@@ -6,15 +6,13 @@ import 'model.dart';
 import 'database.dart';
 
 class Apps extends StatelessWidget {
-  final Iterable<AppCache> apps;
+  final List<AppCache> apps;
   final Function(AppCache)? onOpen;
 
   const Apps(this.apps, {this.onOpen, super.key});
 
   @override
   build(context) {
-    final iconsDir = AppDatabase.iconsDir;
-
     return GridView.builder(
       padding: const EdgeInsets.all(8),
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
@@ -26,7 +24,8 @@ class Apps extends StatelessWidget {
       itemCount: apps.length,
       itemBuilder: (context, i) {
         final item = apps.elementAt(i);
-        final iconFile = File('${iconsDir.path}/${item.packageName}.png');
+        final iconFile =
+            File('${AppDatabase.iconsDir.path}/${item.packageName}.png');
 
         return InkWell(
           onTap: () {
