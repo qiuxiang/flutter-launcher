@@ -120,7 +120,7 @@ class AppDatabase {
       await txn.delete(_tableName);
 
       for (final app in apps) {
-        final iconHash = app.icon != null ? app.icon.hashCode.toString() : null;
+        final iconHash = app.icon?.hashCode.toString();
         final existingHash = iconHashMap[app.packageName];
 
         if (app.icon != null && iconHash != existingHash) {
