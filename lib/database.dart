@@ -18,7 +18,7 @@ class AppDatabase {
 
   static const _tableName = 'apps';
   static const _dbName = 'app_cache.db';
-  static const _dbVersion = 4;
+  static const _dbVersion = 5;
 
   static Directory get iconsDir => _iconsDir!;
 
@@ -62,6 +62,9 @@ class AppDatabase {
       await db.execute(
           'ALTER TABLE $_tableName ADD COLUMN last_opened_at INTEGER NOT NULL DEFAULT 0');
     }
+    if (oldVersion < 5) {
+      await db.execute('ALTER TABLE $_tableName ADD COLUMN icon_hash TEXT');
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -73,7 +76,8 @@ class AppDatabase {
         is_system_app INTEGER NOT NULL DEFAULT 0,
         version_name TEXT,
         is_favorite INTEGER NOT NULL DEFAULT 0,
-        last_opened_at INTEGER NOT NULL DEFAULT 0
+        last_opened_at INTEGER NOT NULL DEFAULT 0,
+        icon_hash TEXT
       )
     ''');
 
@@ -102,22 +106,27 @@ class AppDatabase {
     return db.transaction((txn) async {
       final currentData = await txn.query(
         _tableName,
-        columns: ['package_name', 'last_opened_at'],
+        columns: ['package_name', 'last_opened_at', 'icon_hash'],
       );
       final lastOpenedMap = {
         for (final row in currentData)
           row['package_name'] as String: row['last_opened_at'] as int
       };
+      final iconHashMap = {
+        for (final row in currentData)
+          row['package_name'] as String: row['icon_hash'] as String?
+      };
 
       await txn.delete(_tableName);
 
       for (final app in apps) {
-        if (app.icon != null) {
+        final iconHash = app.icon != null ? app.icon.hashCode.toString() : null;
+        final existingHash = iconHashMap[app.packageName];
+
+        if (app.icon != null && iconHash != existingHash) {
           final iconFile =
               File(join(_iconsDir!.path, '${app.packageName}.png'));
-          if (!await iconFile.exists()) {
-            await iconFile.writeAsBytes(app.icon!);
-          }
+          await iconFile.writeAsBytes(app.icon!);
         }
 
         final cache = AppCache(
@@ -131,6 +140,7 @@ class AppDatabase {
 
         final map = cache.toMap();
         map.remove('icon');
+        map['icon_hash'] = iconHash;
 
         await txn.insert(
           _tableName,
