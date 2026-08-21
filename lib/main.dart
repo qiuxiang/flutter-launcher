@@ -75,28 +75,10 @@ class _HomePageState extends State<HomePage> {
         });
       }
     } catch (e) {
-      if (mounted && _apps.isEmpty) {
+      if (mounted) {
         setState(() => _isLoading = false);
       }
     }
-  }
-
-  Future<void> _onOpen(AppCache app) async {
-    await _db.updateLastOpened(app.packageName);
-    final now = DateTime.now().millisecondsSinceEpoch;
-
-    setState(() {
-      final index = _apps.indexWhere((it) => it.packageName == app.packageName);
-      if (index != -1) {
-        _apps[index] = AppCache(
-          name: app.name,
-          packageName: app.packageName,
-          isSystemApp: app.isSystemApp,
-          versionName: app.versionName,
-          lastOpenedAt: now,
-        );
-      }
-    });
   }
 
   void _onSelected(PopupMenu value) {

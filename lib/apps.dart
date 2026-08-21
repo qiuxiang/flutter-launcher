@@ -7,9 +7,8 @@ import 'database.dart';
 
 class Apps extends StatelessWidget {
   final List<AppCache> apps;
-  final Function(AppCache)? onOpen;
 
-  const Apps(this.apps, {this.onOpen, super.key});
+  const Apps(this.apps, {super.key});
 
   @override
   build(context) {
@@ -29,8 +28,9 @@ class Apps extends StatelessWidget {
 
         return InkWell(
           onTap: () {
-            onOpen?.call(item);
-            InstalledApps.startApp(item.packageName);
+            try {
+              InstalledApps.startApp(item.packageName);
+            } catch (_) {}
           },
           borderRadius: BorderRadius.circular(8),
           child: Column(
