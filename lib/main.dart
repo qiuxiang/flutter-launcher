@@ -36,7 +36,7 @@ enum PopupMenu {
 
 class _HomePageState extends State<HomePage> {
   var _apps = <AppCache>[];
-  var _includeSystemApps = true;
+  var _includeSystemApps = false;
   var _isLoading = true;
   final _db = AppDatabase();
 
