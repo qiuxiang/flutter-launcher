@@ -6,7 +6,6 @@ class AppCache {
   final Uint8List? icon;
   final bool isSystemApp;
   final String? versionName;
-  final int lastOpenedAt;
 
   AppCache({
     required this.name,
@@ -14,7 +13,6 @@ class AppCache {
     this.icon,
     required this.isSystemApp,
     this.versionName,
-    this.lastOpenedAt = 0,
   });
 
   factory AppCache.fromMap(Map<String, dynamic> map) {
@@ -24,7 +22,6 @@ class AppCache {
       icon: map['icon'] as Uint8List?,
       isSystemApp: (map['is_system_app'] as int) == 1,
       versionName: map['version_name'] as String?,
-      lastOpenedAt: map['last_opened_at'] as int? ?? 0,
     );
   }
 
@@ -35,7 +32,6 @@ class AppCache {
       'icon': icon,
       'is_system_app': isSystemApp ? 1 : 0,
       'version_name': versionName,
-      'last_opened_at': lastOpenedAt,
     };
   }
 }

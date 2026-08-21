@@ -95,7 +95,6 @@ class AppDatabase {
         'name',
         'is_system_app',
         'version_name',
-        'last_opened_at'
       ],
     );
     return maps.map((map) => AppCache.fromMap(map)).toList();
@@ -106,12 +105,8 @@ class AppDatabase {
     return db.transaction((txn) async {
       final currentData = await txn.query(
         _tableName,
-        columns: ['package_name', 'last_opened_at', 'icon_hash'],
+        columns: ['package_name', 'icon_hash'],
       );
-      final lastOpenedMap = {
-        for (final row in currentData)
-          row['package_name'] as String: row['last_opened_at'] as int
-      };
       final iconHashMap = {
         for (final row in currentData)
           row['package_name'] as String: row['icon_hash'] as String?
@@ -135,7 +130,6 @@ class AppDatabase {
           icon: app.icon,
           isSystemApp: app.isSystemApp,
           versionName: app.versionName,
-          lastOpenedAt: lastOpenedMap[app.packageName] ?? 0,
         );
 
         final map = cache.toMap();
@@ -149,16 +143,6 @@ class AppDatabase {
         );
       }
     });
-  }
-
-  Future<void> updateLastOpened(String packageName) async {
-    final db = await database;
-    await db.update(
-      _tableName,
-      {'last_opened_at': DateTime.now().millisecondsSinceEpoch},
-      where: 'package_name = ?',
-      whereArgs: [packageName],
-    );
   }
 
   Future<void> close() async {

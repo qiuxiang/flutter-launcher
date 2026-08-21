@@ -113,14 +113,9 @@ class _HomePageState extends State<HomePage> {
       apps = apps.where((it) => !it.isSystemApp).toList();
     }
 
-    // Sort: By last opened time, then by name
+    // Sort: by name ascending only
     final sortedApps = apps.toList()
-      ..sort((a, b) {
-        if (a.lastOpenedAt != b.lastOpenedAt) {
-          return b.lastOpenedAt.compareTo(a.lastOpenedAt);
-        }
-        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
-      });
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
     return Scaffold(
       appBar: AppBar(
@@ -130,7 +125,7 @@ class _HomePageState extends State<HomePage> {
             icon: const Icon(Icons.search),
             onPressed: () => showSearch(
               context: context,
-              delegate: Search(sortedApps, onOpen: _onOpen),
+              delegate: Search(sortedApps),
             ),
           ),
           PopupMenuButton(
@@ -157,7 +152,6 @@ class _HomePageState extends State<HomePage> {
           ? const Center(child: CircularProgressIndicator())
           : Apps(
               sortedApps,
-              onOpen: _onOpen,
             ),
     );
   }
