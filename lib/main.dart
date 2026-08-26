@@ -1,103 +1,178 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:installed_apps/app_info.dart';
 import 'package:installed_apps/installed_apps.dart';
 
-import 'apps.dart';
-import 'model.dart';
-import 'search.dart';
-import 'database.dart';
-
-void main() {
-  runApp(const App());
-}
+void main() => runApp(const App());
 
 class App extends StatelessWidget {
   const App({super.key});
 
   @override
-  build(context) {
-    return MaterialApp(
-      title: 'Launcher',
-      darkTheme: ThemeData.dark(),
-      home: const HomePage(),
-    );
+  Widget build(BuildContext context) => MaterialApp(
+        title: 'Launcher',
+        darkTheme: ThemeData.dark(),
+        home: const HomePage(),
+      );
+}
+
+const _iconChannel = MethodChannel('launcher');
+final _iconCache = <String, Future<Uint8List?>>{};
+final _iconInFlight = <String, Future<Uint8List?>>{};
+
+Future<Uint8List?> getIcon(String packageName) {
+  final cached = _iconCache[packageName];
+  if (cached != null) return cached;
+
+  final existing = _iconInFlight[packageName];
+  if (existing != null) return existing;
+
+  final future = _iconChannel
+      .invokeMethod<Uint8List>('get_icon', {'package_name': packageName})
+      .then((bytes) {
+    _iconInFlight.remove(packageName);
+    _iconCache[packageName] = Future.value(bytes);
+    return bytes;
+  }).catchError((_) {
+    _iconInFlight.remove(packageName);
+    _iconCache[packageName] = Future.value(null);
+    return null;
+  });
+  _iconInFlight[packageName] = future;
+  return future;
+}
+
+class _AppIcon extends StatelessWidget {
+  final AppInfo app;
+  const _AppIcon(this.app);
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<Uint8List?>(
+        future: getIcon(app.packageName),
+        builder: (context, snapshot) {
+          final bytes = snapshot.data;
+          if (bytes != null) {
+            return ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.memory(bytes, width: 48, height: 48),
+            );
+          }
+          return const SizedBox(width: 48, height: 48);
+        },
+      );
+}
+
+class _AppsGrid extends StatelessWidget {
+  final List<AppInfo> apps;
+  const _AppsGrid(this.apps);
+
+  @override
+  Widget build(BuildContext context) => GridView.builder(
+        padding: const EdgeInsets.all(8),
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 80,
+          mainAxisExtent: 80,
+          mainAxisSpacing: 8,
+          crossAxisSpacing: 8,
+        ),
+        itemCount: apps.length,
+        itemBuilder: (context, i) {
+          final item = apps[i];
+          return InkWell(
+            key: ValueKey(item.packageName),
+            onTap: () => InstalledApps.startApp(item.packageName),
+            borderRadius: BorderRadius.circular(8),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _AppIcon(item),
+                const SizedBox(height: 4),
+                Text(
+                  item.name,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+}
+
+class _AppSearch extends SearchDelegate {
+  final List<AppInfo> apps;
+  _AppSearch(this.apps);
+
+  @override
+  List<Widget> buildActions(BuildContext context) =>
+      [IconButton(icon: const Icon(Icons.clear), onPressed: () => query = '')];
+
+  @override
+  Widget? buildLeading(BuildContext context) => null;
+
+  @override
+  Widget buildResults(BuildContext context) => buildSuggestions(context);
+
+  @override
+  Widget buildSuggestions(BuildContext context) {
+    final q = query.toLowerCase();
+    final filtered = apps
+        .where((it) =>
+            it.name.toLowerCase().contains(q) ||
+            it.packageName.toLowerCase().contains(q))
+        .toList();
+    return _AppsGrid(filtered);
   }
 }
+
+const _selfPackageName = 'qiuxiang.launcher';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
   @override
-  createState() => _HomePageState();
-}
-
-enum PopupMenu {
-  systemApps,
+  State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  var _apps = <AppCache>[];
+  var _apps = <AppInfo>[];
   var _includeSystemApps = false;
   var _isLoading = true;
-  final _db = AppDatabase();
 
   @override
-  initState() {
+  void initState() {
     super.initState();
     _loadApps();
   }
 
   Future<void> _loadApps() async {
-    final cachedApps = await _db.getApps();
-    if (cachedApps.isNotEmpty) {
-      setState(() {
-        _apps = cachedApps;
-        _isLoading = false;
-      });
-    }
-
-    await _refreshApps();
-  }
-
-  Future<void> _refreshApps() async {
     try {
       final apps = await InstalledApps.getInstalledApps(
         excludeSystemApps: false,
-        withIcon: true,
+        withIcon: false,
       );
-
-      await _db.saveApps(apps);
-      final updatedApps = await _db.getApps();
-
       if (mounted) {
         setState(() {
-          _apps = updatedApps;
+          _apps = apps;
           _isLoading = false;
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  void _onSelected(PopupMenu value) {
-    switch (value) {
-      case PopupMenu.systemApps:
-        setState(() => _includeSystemApps = !_includeSystemApps);
+      debugPrint('_loadApps failed: $e');
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
-  build(context) {
+  Widget build(BuildContext context) {
     var apps = _apps;
     if (!_includeSystemApps) {
       apps = apps.where((it) => !it.isSystemApp).toList();
     }
-
-    // Sort: by name ascending only
-    final sortedApps = apps.toList()
-      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    final sortedApps = List<AppInfo>.of(apps)
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()))
+      ..removeWhere((it) => it.packageName == _selfPackageName);
 
     return Scaffold(
       appBar: AppBar(
@@ -107,24 +182,21 @@ class _HomePageState extends State<HomePage> {
             icon: const Icon(Icons.search),
             onPressed: () => showSearch(
               context: context,
-              delegate: Search(sortedApps),
+              delegate: _AppSearch(sortedApps),
             ),
           ),
           PopupMenuButton(
-            onSelected: _onSelected,
             itemBuilder: (context) => [
               PopupMenuItem(
-                value: PopupMenu.systemApps,
-                child: Row(children: [
-                  Checkbox(
-                    value: _includeSystemApps,
-                    onChanged: (value) {
-                      setState(() => _includeSystemApps = value!);
-                      Navigator.of(context).pop();
-                    },
-                  ),
-                  const Text('System Apps'),
-                ]),
+                onTap: () {
+                  if (mounted) setState(() => _includeSystemApps = !_includeSystemApps);
+                },
+                child: Row(
+                  children: [
+                    Checkbox(value: _includeSystemApps, onChanged: null),
+                    const Text('System Apps'),
+                  ],
+                ),
               ),
             ],
           ),
@@ -132,9 +204,7 @@ class _HomePageState extends State<HomePage> {
       ),
       body: _isLoading && _apps.isEmpty
           ? const Center(child: CircularProgressIndicator())
-          : Apps(
-              sortedApps,
-            ),
+          : _AppsGrid(sortedApps),
     );
   }
 }
