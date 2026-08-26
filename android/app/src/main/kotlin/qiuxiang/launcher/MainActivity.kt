@@ -12,6 +12,7 @@ import java.io.ByteArrayOutputStream
 
 class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "launcher").setMethodCallHandler { call, result ->
             when (call.method) {
                 "get_icon" -> call.argument<String>("package_name")?.let { pkg ->
